@@ -1,0 +1,43 @@
+name: Build (Java 8 / Spigot 1.16.5)
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 8 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn -B -q -DskipTests clean package
+
+      - name: List build outputs
+        run: ls -al target || true
+
+      - name: Upload plugin jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: UltimateItemShop-${{ github.ref_name }}-${{ github.run_number }}
+          path: |
+            target/*.jar
+          if-no-files-found: error
