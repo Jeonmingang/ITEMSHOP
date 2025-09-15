@@ -1,0 +1,1 @@
+package com.minkang.ultimate.itemshop; public class Main extends org.bukkit.plugin.java.JavaPlugin{}
