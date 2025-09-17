@@ -1,4 +1,0 @@
-gui:
-  item_lore:
-    - "&e가격: &f%price%"
-    - "&7화폐: &f%currency%"
