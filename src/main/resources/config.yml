@@ -1,0 +1,33 @@
+gui:
+  title: "&8후원 상점 &7(&f캐시&7)"
+  size: 54
+
+lore:
+  overlay:
+    - "&7-------------------------"
+    - "&a가격: &f{price}&7 캐시"
+    - "&a수량: &f{amount}&7 개"
+    - "&e클릭하여 구매"
+    - "&7-------------------------"
+
+messages:
+  balance: "&a보유 캐시: &f{balance}"
+  given: "&a{player}&7에게 &f{amount}&7 캐시를 지급했습니다."
+  received: "&a관리자로부터 &f{amount}&7 캐시를 받았습니다. 현재: &f{balance}"
+  need_cash: "&c캐시가 부족합니다. 필요: {price}, 보유: {balance}"
+  need_space: "&c인벤토리 공간이 부족합니다."
+  bought: "&a구매 완료! &f{amount}개&a를 &f{price}&7 캐시로 구매했습니다. 남은 캐시: &f{balance}"
+  not_listed: "&c해당 슬롯에는 등록된 아이템이 없습니다."
+  registered: "&a{slot}번 슬롯에 등록했습니다. 가격: {price} 캐시, 수량: {amount}"
+  unregistered: "&a{slot}번 슬롯의 등록을 취소했습니다."
+  invalid_slot: "&c슬롯은 0~53 사이여야 합니다."
+  hold_item: "&c손에 들고 있는 아이템이 없습니다."
+  only_player: "&c이 명령어는 플레이어만 사용할 수 있습니다."
+  invalid_args: "&c사용법: {usage}"
+
+  # Citizens 연동 메시지
+  link_need_citizens: "&cCitizens 플러그인이 설치되어 있지 않아 연동할 수 없습니다."
+  link_need_npc: "&c바라보고 있는 위치에 NPC가 없습니다."
+  link_success: "&aNPC(ID: {npcId})와 캐시상점을 연동했습니다. 이제 해당 NPC 우클릭 시 상점이 열립니다."
+  link_already: "&eNPC(ID: {npcId})는 이미 캐시상점과 연동되어 있습니다."
+  link_error: "&c연동 중 오류가 발생했습니다."
