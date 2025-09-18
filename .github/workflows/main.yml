@@ -1,14 +1,36 @@
 name: Build (Java 8 / Spigot 1.16.5)
-on: [push, pull_request, workflow_dispatch]
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 8 (Temurin)
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '8'
           cache: maven
-      - run: mvn -B -q -DskipTests clean package
-      - run: ls -al target || true
+
+      - name: Build with Maven
+        run: mvn -U -B -DskipTests clean package
+
+      - name: Show build outputs
+        run: ls -al target || true
+
+      - name: Upload plugin jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: UltimateItemShop-jar
+          path: target/UltimateItemShop-*.jar
+          retention-days: 14
