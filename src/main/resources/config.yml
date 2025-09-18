@@ -1,0 +1,21 @@
+title_prefix: "&a아이템상점: "
+
+messages:
+  prefix: "&7[&aItemShop&7] "
+  no_space: "&c인벤토리 공간이 부족합니다."
+  no_currency: "&c구매 실패: 화폐가 부족합니다. (&e%have%&7/&e%price%&c)"
+  no_currency_set: "&c이 상점은 아직 화폐가 설정되지 않았습니다."
+  bought: "&a구매 완료! &f%item% &7x%amount% &a(가격: &e%price%&a)"
+  removed_fail: "&c구매 실패: 화폐 제거에 실패했습니다."
+  shop_missing: "&c해당 상점이 존재하지 않습니다."
+  open_by_npc: "&7상점 &f%shop% &7이(가) 열렸습니다."
+  coin_given: "&a코인 지급: &f%shop% &7의 화폐 &ex%amount%"
+
+gui:
+  item_lore:
+    - "&e가격: &f%price%"
+    - "&7화폐: &f%currency%"
+
+effects:
+  play_sound: true
+  sound: "ENTITY_EXPERIENCE_ORB_PICKUP"

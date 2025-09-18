@@ -1,0 +1,20 @@
+name: UltimateItemShop
+main: com.minkang.ultimate.itemshop.Main
+version: 1.2.1
+api-version: 1.16
+softdepend: [Citizens]
+authors: [MingangJeon, GPT]
+commands:
+  아이템상점:
+    description: 아이템 화폐 기반 상점 관리 및 열기
+    usage: /아이템상점 [생성|연동|연결해제|연결목록|삭제|설정|목록|추가|제거|열기|리로드|코인] ...
+    aliases: [itemshop]
+permissions:
+  ultimate.itemshop.use:
+    default: true
+  ultimate.itemshop.admin:
+    default: op
+  ultimate.itemshop.reload:
+    default: op
+  ultimate.itemshop.coin:
+    default: op
