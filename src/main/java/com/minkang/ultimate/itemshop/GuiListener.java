@@ -160,7 +160,7 @@ public class GuiListener implements Listener {
     public void onCommand(PlayerCommandPreprocessEvent e) {
         String msg = e.getMessage().trim();
         if (!msg.startsWith("/")) return;
-        String[] parts = msg.substring(1).split("\s+");
+        String[] parts = msg.substring(1).split("\\s+");
         if (parts.length < 3) return;
         String base = parts[0];
         String sub = parts[1];
