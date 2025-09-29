@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.minkang.ultimate</groupId>
   <artifactId>UltimateItemShop</artifactId>
-  <version>1.2.1</version>
+  <version>1.2.2</version>
   <name>UltimateItemShop</name>
   <description>아이템 화폐 기반 GUI 상점 (CatServer/Spigot 1.16.5, Java 8)</description>
 
