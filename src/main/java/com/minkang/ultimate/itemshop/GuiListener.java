@@ -99,13 +99,13 @@ public class GuiListener implements Listener {
         p.sendMessage(plugin.msg("bought").replace("%item%", itemName).replace("%amount%", String.valueOf(toGive.getAmount())).replace("%price%", String.valueOf(price)));
     }
 
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+    @EventHandler(ignoreCancelled = false, priority = EventPriority.HIGHEST)
     public void onNpcRightClick(PlayerInteractEntityEvent e) {
         if (e.getHand() != EquipmentSlot.HAND) return;
         handleNpcClick(e.getPlayer(), e.getRightClicked());
     }
 
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+    @EventHandler(ignoreCancelled = false, priority = EventPriority.HIGHEST)
     public void onNpcRightClick2(PlayerInteractAtEntityEvent e) {
         if (e.getHand() != EquipmentSlot.HAND) return;
         handleNpcClick(e.getPlayer(), e.getRightClicked());
@@ -129,11 +129,11 @@ public class GuiListener implements Listener {
         p.sendMessage(plugin.msg("open_by_npc").replace("%shop%", shop.getName()));
     }
 
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+    @EventHandler(ignoreCancelled = false, priority = EventPriority.HIGHEST)
     public void onItemRightClick(PlayerInteractEvent e) {
         if (e.getHand() != EquipmentSlot.HAND) return;
         Action a = e.getAction();
-        if (a != Action.RIGHT_CLICK_AIR) return;
+        if (a != Action.RIGHT_CLICK_AIR && a != Action.RIGHT_CLICK_BLOCK) return;
         Player p = e.getPlayer();
         ItemStack hand = p.getInventory().getItemInMainHand();
         if (hand == null || hand.getType() == Material.AIR) return;
@@ -156,7 +156,7 @@ public class GuiListener implements Listener {
         p.openInventory(shop.createInventory());
     }
 
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+    @EventHandler(ignoreCancelled = false, priority = EventPriority.HIGHEST)
     public void onCommand(PlayerCommandPreprocessEvent e) {
         String msg = e.getMessage().trim();
         if (!msg.startsWith("/")) return;
