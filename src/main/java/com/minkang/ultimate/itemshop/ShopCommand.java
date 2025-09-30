@@ -29,6 +29,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§e/아이템상점 열기 <이름>");
             sender.sendMessage("§e/아이템상점 리로드");
             sender.sendMessage("§e/아이템상점 코인 <상점이름> <개수>  §7(OP 전용 화폐 지급)");
+            sender.sendMessage("§e/아이템상점 아이템 <상점이름>  §7(손에 든 아이템을 오픈 아이템으로 지정)");
             return true;
         }
 
@@ -67,6 +68,23 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(plugin.msg("coin_given").replace("%shop%", shop.getName()).replace("%amount%", String.valueOf(amount)));
             return true;
         }
+
+        if ("아이템".equals(sub) || "item".equalsIgnoreCase(sub)) {
+    if (!(sender instanceof Player)) { sender.sendMessage("§c플레이어만 사용 가능합니다."); return true; }
+    if (args.length < 2) { sender.sendMessage("§c사용법: /아이템상점 아이템 <상점이름>"); return true; }
+    String shopName = args[1];
+    if (!plugin.getShopManager().exists(shopName)) { sender.sendMessage("§c존재하지 않는 상점입니다."); return true; }
+    Player p = (Player) sender;
+    org.bukkit.inventory.ItemStack hand = p.getInventory().getItemInMainHand();
+    if (hand == null || hand.getType() == org.bukkit.Material.AIR) { sender.sendMessage("§c손에 든 아이템이 없습니다."); return true; }
+    org.bukkit.inventory.meta.ItemMeta meta = hand.getItemMeta();
+    if (meta == null) { sender.sendMessage("§c이 아이템에는 메타데이터를 저장할 수 없습니다."); return true; }
+    org.bukkit.NamespacedKey key = new org.bukkit.NamespacedKey(plugin, "shop_opener");
+    meta.getPersistentDataContainer().set(key, org.bukkit.persistence.PersistentDataType.STRING, shopName);
+    hand.setItemMeta(meta);
+    sender.sendMessage("§a상점 오픈 아이템 설정 완료: §f" + shopName + " §7(우클릭으로 열림)");
+    return true;
+}
 
         if ("열기".equals(sub)) {
             if (args.length < 2) { sender.sendMessage("§c사용법: /아이템상점 열기 <이름>"); return true; }
@@ -221,7 +239,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 2) {
             String sub = args[0];
-            if (sub.equals("삭제") || sub.equals("설정") || sub.equals("추가") || sub.equals("제거") || sub.equals("열기") || sub.equals("코인")) {
+            if (sub.equals("삭제") || sub.equals("설정") || sub.equals("추가") || sub.equals("제거") || sub.equals("열기") || sub.equals("코인") || sub.equals("아이템")) {
                 java.util.List<String> names = new java.util.ArrayList<String>();
                 for (Shop s : plugin.getShopManager().all()) names.add(s.getName());
                 java.util.List<String> out = new java.util.ArrayList<String>();
