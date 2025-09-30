@@ -133,7 +133,7 @@ public class GuiListener implements Listener {
     public void onItemRightClick(PlayerInteractEvent e) {
         if (e.getHand() != EquipmentSlot.HAND) return;
         Action a = e.getAction();
-        if (a != Action.RIGHT_CLICK_AIR && a != Action.RIGHT_CLICK_BLOCK) return;
+        if (a != Action.RIGHT_CLICK_AIR) return;
         Player p = e.getPlayer();
         ItemStack hand = p.getInventory().getItemInMainHand();
         if (hand == null || hand.getType() == Material.AIR) return;
