@@ -51,15 +51,6 @@ public class Util {
                 templ.add("&7화폐: &f%currency%");
             }
 
-            String currencyName;
-            if (currency != null && currency.getItemMeta() != null && currency.getItemMeta().hasDisplayName()) {
-                currencyName = ChatColor.stripColor(currency.getItemMeta().getDisplayName());
-            } else if (currency != null) {
-                currencyName = currency.getType().name();
-            } else {
-                currencyName = "N/A";
-            }
-
             for (String line : templ) {
                 String t = line.replace("%price%", String.valueOf(price)).replace("%currency%", currencyName);
                 out.add(ChatColor.translateAlternateColorCodes('&', t));
@@ -68,24 +59,7 @@ public class Util {
             s.setItemMeta(meta);
         }
         return s;
-    }
-            String currencyName;
-            if (currency != null && currency.getItemMeta() != null && currency.getItemMeta().hasDisplayName()) {
-                currencyName = ChatColor.stripColor(currency.getItemMeta().getDisplayName());
-            } else if (currency != null) {
-                currencyName = currency.getType().name();
-            } else {
-                currencyName = "N/A";
-            }
-            for (String line : templ) {
-                String t = line.replace("%price%", String.valueOf(price)).replace("%currency%", currencyName);
-                lore.add(ChatColor.translateAlternateColorCodes('&', t));
-            }
-            meta.setLore(lore);
-            s.setItemMeta(meta);
-        }
-        return s;
-    }
+
 
     public static ItemStack withPriceLore(ItemStack stack, int price) { return withPriceLore(stack, price, null); }
 
