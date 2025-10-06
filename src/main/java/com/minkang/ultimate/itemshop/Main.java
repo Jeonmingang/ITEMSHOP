@@ -26,7 +26,10 @@ public class Main extends JavaPlugin {
             getCommand("아이템상점").setExecutor(cmd);
             getCommand("아이템상점").setTabCompleter(cmd);
         }
-        Bukkit.getPluginManager().registerEvents(new GuiListener(this), this);
+        
+        // Register command interceptor for look-at NPC linking
+        getServer().getPluginManager().registerEvents(new com.minkang.ultimate.itemshop.CommandInterceptListener(this), this);
+Bukkit.getPluginManager().registerEvents(new GuiListener(this), this);
         getLogger().info("[UltimateItemShop] 활성화 완료");
     }
 
