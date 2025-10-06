@@ -20,13 +20,55 @@ public class Util {
         if (meta != null) {
             List<String> lore = meta.getLore();
             if (lore == null) lore = new ArrayList<String>();
+
             FileConfiguration c = Main.getInstance().getConfig();
+            // Configurable: include original item lore in GUI
+            boolean showOriginal = c.getBoolean("gui.show_original_lore", true);
+            int maxOrigLines = Math.max(0, c.getInt("gui.original_lore_max_lines", 12));
+            String origPrefix = c.getString("gui.original_lore_prefix", "&7");
+            String separator = c.getString("gui.lore_separator", "&8----------------");
+
+            List<String> out = new ArrayList<String>();
+            if (showOriginal && !lore.isEmpty()) {
+                int count = 0;
+                for (String line : lore) {
+                    if (count >= maxOrigLines) break;
+                    String colored = ChatColor.translateAlternateColorCodes('&', (origPrefix == null ? "" : origPrefix) + line);
+                    out.add(colored);
+                    count++;
+                }
+                // Add separator between original lore and price block
+                if (separator != null && !separator.isEmpty()) {
+                    out.add(ChatColor.translateAlternateColorCodes('&', separator));
+                }
+            }
+
+            // Price block template
             List<String> templ = c.getStringList("gui.item_lore");
             if (templ == null || templ.isEmpty()) {
                 templ = new ArrayList<String>();
                 templ.add("&e가격: &f%price%");
                 templ.add("&7화폐: &f%currency%");
             }
+
+            String currencyName;
+            if (currency != null && currency.getItemMeta() != null && currency.getItemMeta().hasDisplayName()) {
+                currencyName = ChatColor.stripColor(currency.getItemMeta().getDisplayName());
+            } else if (currency != null) {
+                currencyName = currency.getType().name();
+            } else {
+                currencyName = "N/A";
+            }
+
+            for (String line : templ) {
+                String t = line.replace("%price%", String.valueOf(price)).replace("%currency%", currencyName);
+                out.add(ChatColor.translateAlternateColorCodes('&', t));
+            }
+            meta.setLore(out);
+            s.setItemMeta(meta);
+        }
+        return s;
+    }
             String currencyName;
             if (currency != null && currency.getItemMeta() != null && currency.getItemMeta().hasDisplayName()) {
                 currencyName = ChatColor.stripColor(currency.getItemMeta().getDisplayName());

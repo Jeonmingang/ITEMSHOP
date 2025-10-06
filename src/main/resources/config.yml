@@ -25,3 +25,11 @@ messages:
   prefix: "&a[아이템상점] &r"
   no_npc_in_sight: "&c바라보는 Citizens NPC가 없습니다. NPC를 바라보고 다시 시도하세요."
   linked: "&a상점 &e{shop}&a 이(가) NPC &b{npc}&a 에 연동되었습니다."
+
+
+# GUI lore display options
+gui:
+  show_original_lore: true
+  original_lore_max_lines: 12
+  original_lore_prefix: "&7"
+  lore_separator: "&8----------------"
