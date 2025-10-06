@@ -53,6 +53,30 @@ public final class Util {
         return withPriceLore(stack, "원", price);
     }
 
+/** 
+ * Overload: derive currency name from an ItemStack (display name if present, else type name).
+ * Matches calls like withPriceLore(stack, price, currencyItem).
+ */
+public static ItemStack withPriceLore(ItemStack stack, int price, ItemStack currencyItem) {
+    String cur = "원";
+    if (currencyItem != null) {
+        ItemMeta cm = currencyItem.getItemMeta();
+        if (cm != null && cm.hasDisplayName()) {
+            String dn = cm.getDisplayName();
+            String stripped = ChatColor.stripColor(dn);
+            if (stripped != null && !stripped.trim().isEmpty()) {
+                cur = stripped.trim();
+            }
+        } else {
+            try {
+                cur = currencyItem.getType().name().toLowerCase().replace('_', ' ');
+            } catch (Throwable ignored) {}
+        }
+    }
+    return withPriceLore(stack, cur, price);
+}
+
+
     /** 원래 코드와의 호환: (stack, price, currencyName) 시그니처도 지원 */
     public static ItemStack withPriceLore(ItemStack stack, int price, String currencyName) {
         return withPriceLore(stack, currencyName, price);
