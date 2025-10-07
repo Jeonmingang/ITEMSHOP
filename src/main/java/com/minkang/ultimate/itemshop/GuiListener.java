@@ -276,7 +276,7 @@ private void handleNpcClick(Player p, Entity entity) {
         }
 
         // 오픈 & 피드백
-        shop.open(p);
+        p.openInventory(shop.createInventory());
         // 선택적으로 메시지
         try {
             String msg = plugin.getConfig().getString("messages.open_by_npc", "&7상점 &f%shop% &7이(가) 열렸습니다.");
