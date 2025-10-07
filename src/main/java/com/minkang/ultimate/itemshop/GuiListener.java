@@ -137,7 +137,7 @@ public class GuiListener implements Listener {
         if (last != null && (now - last) < OPEN_COOLDOWN_MS) return;
         openCooldown.put(p.getUniqueId(), now);
 
-        Integer npcId = getCitizensId(e.getRightClicked());
+        Integer npcId = getCitizensId(entity);
         String linked = (npcId != null ? plugin.getShopManager().getLinkedShopNameById(npcId) : null);
         if (linked == null) linked = plugin.getShopManager().getLinkedShopName(name);
         if (linked == null) return;
