@@ -127,25 +127,35 @@ public class GuiListener implements Listener {
         handleNpcClick(e.getPlayer(), e.getRightClicked());
     }
 
-    private void handleNpcClick(Player p, Entity entity) {
+    
+private void handleNpcClick(Player p, Entity entity) {
         if (entity == null) return;
-        String name = entity.getCustomName();
-        if (name == null) return;
 
         long now = System.currentTimeMillis();
         Long last = openCooldown.get(p.getUniqueId());
         if (last != null && (now - last) < OPEN_COOLDOWN_MS) return;
         openCooldown.put(p.getUniqueId(), now);
 
+        // 1) Try Citizens NPC ID first (works even when the NPC has no custom nameplate)
         Integer npcId = getCitizensId(entity);
         String linked = (npcId != null ? plugin.getShopManager().getLinkedShopNameById(npcId) : null);
-        if (linked == null) linked = plugin.getShopManager().getLinkedShopName(name);
+
+        // 2) Fallback to name-based linking only if id-link not found
+        if (linked == null) {
+            String name = entity.getCustomName();
+            if (name != null) {
+                linked = plugin.getShopManager().getLinkedShopName(name);
+            }
+        }
+
         if (linked == null) return;
         Shop shop = plugin.getShopManager().get(linked);
         if (shop == null) return;
+
         p.openInventory(shop.createInventory());
         p.sendMessage(plugin.msg("open_by_npc").replace("%shop%", shop.getName()));
     }
+
 
     @EventHandler(ignoreCancelled = false, priority = EventPriority.HIGHEST)
     public void onItemRightClick(PlayerInteractEvent e) {
