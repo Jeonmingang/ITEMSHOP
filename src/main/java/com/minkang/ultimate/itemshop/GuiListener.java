@@ -117,45 +117,51 @@ public class GuiListener implements Listener {
         p.sendMessage(plugin.msg("bought").replace("%item%", itemName).replace("%amount%", String.valueOf(toGive.getAmount())).replace("%price%", String.valueOf(price)));
     }
 
-    @EventHandler(ignoreCancelled = false, priority = EventPriority.HIGHEST)
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onNpcRightClick(PlayerInteractEntityEvent e) {
         if (e.getHand() != EquipmentSlot.HAND) return;
-        handleNpcClick(e.getPlayer(), e.getRightClicked());
+        if (handleNpcClick(e.getPlayer(), e.getRightClicked())) e.setCancelled(true);
     }
 
-    @EventHandler(ignoreCancelled = false, priority = EventPriority.HIGHEST)
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onNpcRightClick2(PlayerInteractAtEntityEvent e) {
         if (e.getHand() != EquipmentSlot.HAND) return;
-        handleNpcClick(e.getPlayer(), e.getRightClicked());
+        if (handleNpcClick(e.getPlayer(), e.getRightClicked())) e.setCancelled(true);
     }
 
     
-private void handleNpcClick(Player p, Entity entity) {
-        if (entity == null) return;
+private boolean handleNpcClick(Player p, Entity entity) {
+        if (entity == null) return false;
 
         long now = System.currentTimeMillis();
         Long last = openCooldown.get(p.getUniqueId());
-        if (last != null && (now - last) < OPEN_COOLDOWN_MS) return;
+        if (last != null && (now - last) < OPEN_COOLDOWN_MS) return false;
         openCooldown.put(p.getUniqueId(), now);
 
-        // 1) Try Citizens NPC ID first (works even when the NPC has no custom nameplate)
+        // Citizens NPC ID 필수 (비-NPC이면 완전 무시 → 서버 전역 충돌 방지)
         Integer npcId = getCitizensId(entity);
-        String linked = (npcId != null ? plugin.getShopManager().getLinkedShopNameById(npcId) : null);
+        if (npcId == null) return false;
 
-        // 2) Fallback to name-based linking only if id-link not found
-        if (linked == null) {
-            String name = entity.getCustomName();
-            if (name != null) {
-                linked = plugin.getShopManager().getLinkedShopName(name);
-            }
+        String linked = plugin.getShopManager().getLinkedShopNameById(npcId);
+        if (linked == null || linked.isEmpty()) return false;
+
+        Shop shop = plugin.getShopManager().get(linked);
+        if (shop == null) return false;
+
+        p.openInventory(shop.createInventory());
+        String msg = plugin.msg("open_by_npc").replace("%shop%", shop.getName());
+        if (msg != null && !msg.isEmpty()) p.sendMessage(msg);
+        return true;
+    }
         }
 
-        if (linked == null) return;
+        if (linked == null) return false;
         Shop shop = plugin.getShopManager().get(linked);
-        if (shop == null) return;
+        if (shop == null) return false;
 
         p.openInventory(shop.createInventory());
         p.sendMessage(plugin.msg("open_by_npc").replace("%shop%", shop.getName()));
+        return true;
     }
 
 
@@ -233,63 +239,6 @@ private void handleNpcClick(Player p, Entity entity) {
     }
 
 
-    // === NPC 무권한 오픈 (ID 연동 기반) ===
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
-    public void onNpcRightClickBypass(PlayerInteractEntityEvent e) {
-        // 오프핸드 중복 호출 방지
-        try {
-            if (e.getHand() == org.bukkit.inventory.EquipmentSlot.OFF_HAND) return;
-        } catch (Throwable ignored) {}
-        handleNpcBypassOpen(e.getPlayer(), e.getRightClicked());
-        e.setCancelled(true);
-    }
-
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
-    public void onNpcRightClickAtBypass(PlayerInteractAtEntityEvent e) {
-        try {
-            if (e.getHand() == org.bukkit.inventory.EquipmentSlot.OFF_HAND) return;
-        } catch (Throwable ignored) {}
-        handleNpcBypassOpen(e.getPlayer(), e.getRightClicked());
-        e.setCancelled(true);
-    }
-
-    private void handleNpcBypassOpen(Player p, Entity clicked) {
-        Integer npcId = getCitizensNpcId(clicked);
-        if (npcId == null) return;
-
-        Main plugin = Main.getInstance();
-        String shopName = plugin.getShopManager().getLinkedShopNameById(npcId);
-        boolean hasLink = shopName != null && !shopName.isEmpty();
-        boolean bypassCfg = plugin.getConfig().getBoolean("bypass-permission-on-npc", true);
-        boolean bypass = bypassCfg && hasLink;
-
-        if (!hasLink) return;
-        if (!p.hasPermission("ultimate.itemshop.use") && !bypass) {
-            // NPC 링크가 없거나 우회 비활성화면 그냥 무시
-            return;
-        }
-
-        Shop shop = plugin.getShopManager().get(shopName);
-        if (shop == null) {
-            p.sendMessage(plugin.msg("shop_missing"));
-            return;
-        }
-
-        // 오픈 & 피드백
-        p.openInventory(shop.createInventory());
-        // 선택적으로 메시지
-        try {
-            String msg = plugin.getConfig().getString("messages.open_by_npc", "&7상점 &f%shop% &7이(가) 열렸습니다.");
-            if (msg != null && !msg.isEmpty()) {
-                p.sendMessage(org.bukkit.ChatColor.translateAlternateColorCodes('&', msg.replace("%shop%", shopName)));
-            }
-        } catch (Throwable ignored) {}
-    }
-
-    // Citizens API가 없더라도 리플렉션/메타데이터로 NPC ID를 안전하게 구함
-    private Integer getCitizensNpcId(Entity entity) {
-        if (entity == null) return null;
-        // 1) 정식 리플렉션 경로
         try {
             Class<?> api = Class.forName("net.citizensnpcs.api.CitizensAPI");
             java.lang.reflect.Method getReg = api.getMethod("getNPCRegistry");
