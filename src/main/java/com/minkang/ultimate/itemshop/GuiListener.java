@@ -108,11 +108,16 @@ public class GuiListener implements Listener {
 
         // success
         String bought = plugin.getConfig().getString("messages.bought", "&a구매 완료! &f%item% &7x%amount% &a(가격: &e%price%&a)");
-        bought = ChatColor.translateAlternateColorCodes('&', bought
-                .replace("%item%", Util.itemName(give))
-                .replace("%amount%", String.valueOf(give.getAmount()))
-                .replace("%price%", String.valueOf(price)));
-        p.sendMessage(bought);
+        String __itemName;
+ItemMeta __meta = give.getItemMeta();
+if (__meta != null && __meta.hasDisplayName()) __itemName = __meta.getDisplayName();
+else __itemName = give.getType().name().toLowerCase().replace('_', ' ');
+bought = ChatColor.translateAlternateColorCodes('&', bought
+        .replace("%item%", __itemName)
+        .replace("%amount%", String.valueOf(give.getAmount()))
+        .replace("%price%", String.valueOf(price))
+);
+p.sendMessage(bought);
         plugin.playBuyEffect(p);
     }
 
