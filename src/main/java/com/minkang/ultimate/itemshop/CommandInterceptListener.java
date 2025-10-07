@@ -1,26 +1,19 @@
 package com.minkang.ultimate.itemshop;
 
 import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
-import org.bukkit.util.Vector;
-import java.lang.reflect.Method;
-import java.util.Collection;
 
 /**
- * Intercepts: /아이템상점 연동 <상점이름>
- * If npc name is omitted, links the shop to the Citizens NPC the player is looking at (within 6 blocks).
- * No compile-time dependency on Citizens; checks "NPC" metadata on the entity.
- * Compatible with Spigot/Paper 1.16.5: no usage of Player#rayTraceEntities (not available on older APIs).
+ * Adds two patterns (ID 기반):
+ *  - /아이템상점 연동 <npcId> <상점이름>  : 해당 NPC ID에 상점 연동
+ *  - /아이템상점 연동 <npcId>         : 해당 NPC ID 연동 해제
+ * 기존 이름 기반 명령어는 ShopCommand 쪽에 그대로 남겨둠(호환).
  */
 public class CommandInterceptListener implements Listener {
 
     private final Main plugin;
-
     public CommandInterceptListener(Main plugin) { this.plugin = plugin; }
 
     @EventHandler
@@ -28,72 +21,46 @@ public class CommandInterceptListener implements Listener {
         String msg = e.getMessage();
         if (msg == null || !msg.startsWith("/")) return;
         String[] parts = msg.substring(1).trim().split("\\s+");
-        if (parts.length != 3) return; // we only care about exactly 3 tokens: cmd sub shop
+        if (parts.length < 2) return;
         String label = parts[0];
         if (!(label.equalsIgnoreCase("아이템상점") || label.equalsIgnoreCase("itemshop"))) return;
-        String sub = parts[1];
-        if (!(sub.equalsIgnoreCase("연동") || sub.equalsIgnoreCase("link"))) return;
+        if (!(parts[1].equalsIgnoreCase("연동") || parts[1].equalsIgnoreCase("link"))) return;
 
-        String shopName = parts[2];
+        // /아이템상점 연동 <npcId> <shopName>
+        if (parts.length == 4) {
+            Integer npcId = parseInt(parts[2]);
+            if (npcId == null) return; // not our form
+            String shopName = parts[3];
 
-        // Find target entity user is looking at (within 6 blocks), compatible with 1.16
-        Entity target = findTargetEntityCompat(e.getPlayer().getLocation(), e.getPlayer(), 6.0);
-        if (!(target instanceof LivingEntity) || !target.hasMetadata("NPC")) {
-            e.getPlayer().sendMessage(plugin.msg("no_npc_in_sight"));
+            if (!plugin.getShopManager().exists(shopName)) {
+                e.getPlayer().sendMessage(plugin.msg("shop_missing"));
+                e.setCancelled(true);
+                return;
+            }
+            plugin.getShopManager().linkNpcId(npcId, shopName);
+            plugin.getShopManager().save();
+
+            String tpl = plugin.getConfig().getString("messages.linked_id", "&aNPC &b#{id}&a 에 상점 &e{shop}&a 연동 완료.");
+            e.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&',
+                    tpl.replace("{id}", String.valueOf(npcId)).replace("{shop}", shopName)));
             e.setCancelled(true);
             return;
         }
 
-        String npcName = target.getName();
-        if (npcName == null || npcName.trim().isEmpty()) {
-            npcName = ((LivingEntity) target).getCustomName();
-            if (npcName == null || npcName.trim().isEmpty()) npcName = "NPC";
+        // /아이템상점 연동 <npcId>  => unlink
+        if (parts.length == 3) {
+            Integer npcId = parseInt(parts[2]);
+            if (npcId == null) return; // not our form
+            plugin.getShopManager().unlinkNpcId(npcId);
+            plugin.getShopManager().save();
+            String tpl = plugin.getConfig().getString("messages.unlinked_id", "&eNPC &b#{id}&e 연동을 해제했습니다.");
+            e.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&',
+                    tpl.replace("{id}", String.valueOf(npcId))));
+            e.setCancelled(true);
         }
-
-        // Link and persist
-        plugin.getShopManager().linkNpc(npcName, shopName);
-        plugin.getShopManager().save();
-
-        String msgTemplate = plugin.getConfig().getString("messages.linked", "&a상점 &e{shop}&a 이(가) NPC &b{npc}&a 에 연동되었습니다.");
-        e.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&',
-                msgTemplate.replace("{shop}", shopName).replace("{npc}", npcName)));
-
-        // Stop the original executor from handling (which expects npc name and would error)
-        e.setCancelled(true);
     }
 
-    /**
-     * Try to resolve target entity user is looking at within a distance, without using rayTraceEntities.
-     * 1) Try reflection on Player#getTargetEntity(int) if available.
-     * 2) Fallback: search nearby entities and choose the one with best alignment and distance along the view ray.
-     */
-    private Entity findTargetEntityCompat(Location eyeLoc, org.bukkit.entity.Player p, double maxDistance) {
-        // 1) Reflection path for newer APIs
-        try {
-            Method m = p.getClass().getMethod("getTargetEntity", int.class);
-            Object result = m.invoke(p, (int) Math.ceil(maxDistance));
-            if (result instanceof Entity) return (Entity) result;
-        } catch (Throwable ignored) {}
-
-        // 2) Geometric fallback: pick entity in a narrow cone along view direction
-        Vector origin = eyeLoc.toVector();
-        Vector dir = eyeLoc.getDirection().normalize();
-        double bestScore = 0.965; // cos(theta); ~15 degrees cone
-        Entity best = null;
-
-        Collection<Entity> nearby = p.getWorld().getNearbyEntities(eyeLoc, maxDistance, maxDistance, maxDistance);
-        for (Entity ent : nearby) {
-            if (ent == p) continue;
-            Vector to = ent.getLocation().toVector().add(new Vector(0, ent.getHeight() * 0.5, 0)).subtract(origin);
-            double dist = to.length();
-            if (dist < 0.01 || dist > maxDistance) continue;
-            Vector norm = to.normalize();
-            double dot = dir.dot(norm);
-            if (dot > bestScore) {
-                bestScore = dot;
-                best = ent;
-            }
-        }
-        return best;
+    private Integer parseInt(String s) {
+        try { return Integer.parseInt(s); } catch (NumberFormatException ex) { return null; }
     }
 }

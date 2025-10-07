@@ -33,3 +33,7 @@ gui:
   original_lore_max_lines: 12
   original_lore_prefix: "&7"
   lore_separator: "&8----------------"
+
+messages:
+  linked_id: "&aNPC &b#{id}&a 에 상점 &e{shop}&a 연동 완료."
+  unlinked_id: "&eNPC &b#{id}&e 연동을 해제했습니다."

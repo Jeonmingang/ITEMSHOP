@@ -27,6 +27,22 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 public class GuiListener implements Listener {
+    private Integer getCitizensId(org.bukkit.entity.Entity ent) {
+        try {
+            if (!ent.hasMetadata("NPC")) return null;
+            java.util.List<org.bukkit.metadata.MetadataValue> vals = ent.getMetadata("NPC");
+            if (vals == null || vals.isEmpty()) return null;
+            Object npcObj = vals.get(0).value();
+            if (npcObj == null) return null;
+            // reflection call: npcObj.getClass().getMethod("getId").invoke(npcObj)
+            java.lang.reflect.Method m = npcObj.getClass().getMethod("getId");
+            Object id = m.invoke(npcObj);
+            if (id instanceof Integer) return (Integer) id;
+            if (id != null) return Integer.parseInt(String.valueOf(id));
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
 
     private final Main plugin;
     private final Map<UUID, Long> openCooldown = new ConcurrentHashMap<UUID, Long>();
@@ -121,7 +137,9 @@ public class GuiListener implements Listener {
         if (last != null && (now - last) < OPEN_COOLDOWN_MS) return;
         openCooldown.put(p.getUniqueId(), now);
 
-        String linked = plugin.getShopManager().getLinkedShopName(name);
+        Integer npcId = getCitizensId(e.getRightClicked());
+        String linked = (npcId != null ? plugin.getShopManager().getLinkedShopNameById(npcId) : null);
+        if (linked == null) linked = plugin.getShopManager().getLinkedShopName(name);
         if (linked == null) return;
         Shop shop = plugin.getShopManager().get(linked);
         if (shop == null) return;

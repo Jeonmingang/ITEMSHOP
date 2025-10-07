@@ -13,6 +13,7 @@ import java.util.Map;
 public class ShopManager {
 
     private final Main plugin;
+    private final java.util.Map<Integer,String> npcLinksId = new java.util.HashMap<Integer,String>();
     private final File file;
     private FileConfiguration data;
 
@@ -64,6 +65,13 @@ public class ShopManager {
                 if (shopName != null) npcLinks.put(npcName, shopName);
             }
         }
+        ConfigurationSection linkIdSec = data.getConfigurationSection("npc_links_id");
+        if (linkIdSec != null) {
+            for (String idKey : linkIdSec.getKeys(false)) {
+                String shopName = linkIdSec.getString(idKey);
+                try { int id = Integer.parseInt(idKey); if (shopName != null) npcLinksId.put(id, shopName);} catch (NumberFormatException ignored) {}
+            }
+        }
     }
 
     public void save() {
@@ -82,6 +90,8 @@ public class ShopManager {
             }
         }
         for (java.util.Map.Entry<String, String> e : npcLinks.entrySet()) data.set("npc_links." + e.getKey(), e.getValue());
+        data.set("npc_links_id", null);
+        for (java.util.Map.Entry<Integer, String> e : npcLinksId.entrySet()) data.set("npc_links_id." + e.getKey(), e.getValue());
         try { data.save(file); } catch (IOException ex) { plugin.getLogger().warning("shops.yml 저장 실패: " + ex.getMessage()); }
     }
 
@@ -94,4 +104,8 @@ public class ShopManager {
     public void unlinkNpc(String npcName) { npcLinks.remove(npcName); }
     public String getLinkedShopName(String npcName) { return npcLinks.get(npcName); }
     public java.util.Map<String, String> getNpcLinks() { return npcLinks; }
+    public void linkNpcId(int npcId, String shopName) { npcLinksId.put(npcId, shopName); }
+    public void unlinkNpcId(int npcId) { npcLinksId.remove(npcId); }
+    public String getLinkedShopNameById(int npcId) { return npcLinksId.get(npcId); }
+    public java.util.Map<Integer,String> getNpcLinksId() { return npcLinksId; }
 }
