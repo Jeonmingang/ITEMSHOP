@@ -1,5 +1,7 @@
 package com.minkang.ultimate.itemshop;
 
+import com.minkang.ultimate.itemshop.Shop;
+
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -230,4 +232,103 @@ private void handleNpcClick(Player p, Entity entity) {
         e.setCancelled(true);
     }
 
+
+    // === NPC 무권한 오픈 (ID 연동 기반) ===
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+    public void onNpcRightClickBypass(PlayerInteractEntityEvent e) {
+        // 오프핸드 중복 호출 방지
+        try {
+            if (e.getHand() == org.bukkit.inventory.EquipmentSlot.OFF_HAND) return;
+        } catch (Throwable ignored) {}
+        handleNpcBypassOpen(e.getPlayer(), e.getRightClicked());
+        e.setCancelled(true);
+    }
+
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+    public void onNpcRightClickAtBypass(PlayerInteractAtEntityEvent e) {
+        try {
+            if (e.getHand() == org.bukkit.inventory.EquipmentSlot.OFF_HAND) return;
+        } catch (Throwable ignored) {}
+        handleNpcBypassOpen(e.getPlayer(), e.getRightClicked());
+        e.setCancelled(true);
+    }
+
+    private void handleNpcBypassOpen(Player p, Entity clicked) {
+        Integer npcId = getCitizensNpcId(clicked);
+        if (npcId == null) return;
+
+        Main plugin = Main.getInstance();
+        String shopName = plugin.getShopManager().getLinkedShopNameById(npcId);
+        boolean hasLink = shopName != null && !shopName.isEmpty();
+        boolean bypassCfg = plugin.getConfig().getBoolean("bypass-permission-on-npc", true);
+        boolean bypass = bypassCfg && hasLink;
+
+        if (!hasLink) return;
+        if (!p.hasPermission("ultimate.itemshop.use") && !bypass) {
+            // NPC 링크가 없거나 우회 비활성화면 그냥 무시
+            return;
+        }
+
+        Shop shop = plugin.getShopManager().get(shopName);
+        if (shop == null) {
+            p.sendMessage(plugin.msg("shop_missing"));
+            return;
+        }
+
+        // 오픈 & 피드백
+        shop.open(p);
+        // 선택적으로 메시지
+        try {
+            String msg = plugin.getConfig().getString("messages.open_by_npc", "&7상점 &f%shop% &7이(가) 열렸습니다.");
+            if (msg != null && !msg.isEmpty()) {
+                p.sendMessage(org.bukkit.ChatColor.translateAlternateColorCodes('&', msg.replace("%shop%", shopName)));
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    // Citizens API가 없더라도 리플렉션/메타데이터로 NPC ID를 안전하게 구함
+    private Integer getCitizensNpcId(Entity entity) {
+        if (entity == null) return null;
+        // 1) 정식 리플렉션 경로
+        try {
+            Class<?> api = Class.forName("net.citizensnpcs.api.CitizensAPI");
+            java.lang.reflect.Method getReg = api.getMethod("getNPCRegistry");
+            Object reg = getReg.invoke(null);
+            java.lang.reflect.Method isNpc = reg.getClass().getMethod("isNPC", org.bukkit.entity.Entity.class);
+            Boolean npc = (Boolean) isNpc.invoke(reg, entity);
+            if (npc == null || !npc) return null;
+            java.lang.reflect.Method getNpc = reg.getClass().getMethod("getNPC", org.bukkit.entity.Entity.class);
+            Object npcObj = getNpc.invoke(reg, entity);
+            if (npcObj == null) return null;
+            java.lang.reflect.Method getId = npcObj.getClass().getMethod("getId");
+            Object id = getId.invoke(npcObj);
+            if (id instanceof Integer) return (Integer) id;
+            if (id != null) return Integer.parseInt(String.valueOf(id));
+        } catch (Throwable ignored) {}
+
+        // 2) 메타데이터 기반(보조)
+        try {
+            if (entity.hasMetadata("NPC")) {
+                java.util.List<org.bukkit.metadata.MetadataValue> vals = entity.getMetadata("NPC");
+                if (vals != null && !vals.isEmpty()) {
+                    Object v = vals.get(0).value();
+                    if (v != null) {
+                        try {
+                            java.lang.reflect.Method m = v.getClass().getMethod("getId");
+                            Object id = m.invoke(v);
+                            if (id instanceof Integer) return (Integer) id;
+                            if (id != null) return Integer.parseInt(String.valueOf(id));
+                        } catch (Throwable ignored2) {
+                            // 마지막 시도: 문자열에서 숫자 추출
+                            String s = String.valueOf(v);
+                            java.util.regex.Matcher m2 = java.util.regex.Pattern.compile("(\\d+)").matcher(s);
+                            if (m2.find()) return Integer.parseInt(m2.group(1));
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+    
 }

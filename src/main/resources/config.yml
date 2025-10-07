@@ -37,3 +37,7 @@ gui:
 messages:
   linked_id: "&aNPC &b#{id}&a 에 상점 &e{shop}&a 연동 완료."
   unlinked_id: "&eNPC &b#{id}&e 연동을 해제했습니다."
+
+
+# NPC를 통한 상점 열기 시 권한 우회 (연동된 NPC만)
+bypass-permission-on-npc: true
