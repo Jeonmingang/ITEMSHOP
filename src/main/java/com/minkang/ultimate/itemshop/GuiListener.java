@@ -157,23 +157,45 @@ p.sendMessage(bought);
         p.openInventory(shop.createInventory());
     }
 
-    /* ---------------------------
+    
+    private boolean tryOpenByHandItem(Player p) {
+        ItemStack hand = p.getInventory().getItemInMainHand();
+        if (hand == null || hand.getType() == Material.AIR) return false;
+        ItemMeta meta = hand.getItemMeta();
+        if (meta == null) return false;
+        NamespacedKey key = new NamespacedKey(plugin, "shop_opener");
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        String shopName = pdc.get(key, PersistentDataType.STRING);
+        if (shopName == null || shopName.isEmpty()) return false;
+        Shop shop = plugin.getShopManager().get(shopName);
+        if (shop == null) { p.sendMessage(plugin.msg("shop_missing")); return false; }
+
+        long now = System.currentTimeMillis();
+        Long last = openCooldown.get(p.getUniqueId());
+        if (last != null && (now - last) < OPEN_COOLDOWN_MS) return true; // treat as handled to avoid bounce
+        openCooldown.put(p.getUniqueId(), now);
+
+        p.openInventory(shop.createInventory());
+        return true;
+    }
+    
+/* ---------------------------
      *  NPC RIGHT-CLICK (Citizens ID-linked only)
      * --------------------------- */
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onNpcRightClick(PlayerInteractEntityEvent e) {
         if (e.getHand() != EquipmentSlot.HAND) return;
-        if (handleNpcClick(e.getPlayer(), e.getRightClicked())) {
-            e.setCancelled(true);
-        }
+        Player p = e.getPlayer();
+        if (tryOpenByHandItem(p)) { e.setCancelled(true); return; }
+        if (handleNpcClick(p, e.getRightClicked())) { e.setCancelled(true); }
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onNpcRightClick2(PlayerInteractAtEntityEvent e) {
         if (e.getHand() != EquipmentSlot.HAND) return;
-        if (handleNpcClick(e.getPlayer(), e.getRightClicked())) {
-            e.setCancelled(true);
-        }
+        Player p = e.getPlayer();
+        if (tryOpenByHandItem(p)) { e.setCancelled(true); return; }
+        if (handleNpcClick(p, e.getRightClicked())) { e.setCancelled(true); }
     }
 
     private boolean handleNpcClick(Player p, Entity entity) {
