@@ -15,7 +15,6 @@ import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.metadata.MetadataValue;
@@ -27,18 +26,10 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Clean listener:
- *  - Shop GUI purchase handling
- *  - Open-by-item (PDC "shop_opener")
- *  - Citizens NPC ID-linked open (permission bypass via config), only for linked NPCs
- *  - Safe event cancellation only when we actually open the shop
- *  - Debounce to avoid double-open
- */
 public class GuiListener implements Listener {
 
     private final Main plugin;
-    private final Map<UUID, Long> openCooldown = new ConcurrentHashMap<UUID, Long>();
+    private final Map<UUID, Long> openCooldown = new ConcurrentHashMap<>();
     private static final long OPEN_COOLDOWN_MS = 250L;
 
     public GuiListener(Main plugin) {
@@ -84,15 +75,14 @@ public class GuiListener implements Listener {
         int price = si.getPrice();
         int have = Util.countCurrency(p, currency);
         if (have < price) {
-            p.sendMessage(ChatColor.translateAlternateColorCodes('&',
-                    plugin.getConfig().getString("messages.no_currency", "&c구매 실패: 화폐가 부족합니다. (&e%have%&7/&e%price%&c)")
-                            .replace("%have%", String.valueOf(have))
-                            .replace("%price%", String.valueOf(price))
-            ));
+            String msg = plugin.getConfig().getString("messages.no_currency",
+                    "&c구매 실패: 화폐가 부족합니다. (&e%have%&7/&e%price%&c)");
+            msg = ChatColor.translateAlternateColorCodes('&',
+                    msg.replace("%have%", String.valueOf(have)).replace("%price%", String.valueOf(price)));
+            p.sendMessage(msg);
             return;
         }
 
-        // remove currency then give item
         if (!Util.removeCurrency(p, currency, price)) {
             p.sendMessage(plugin.msg("removed_fail"));
             return;
@@ -101,28 +91,26 @@ public class GuiListener implements Listener {
         ItemStack give = si.getItem().clone();
         Map<Integer, ItemStack> leftover = p.getInventory().addItem(give);
         if (!leftover.isEmpty()) {
-            // rollback? For simplicity we just warn; typical servers ensure free slot first.
             p.sendMessage(plugin.msg("no_space"));
             return;
         }
 
-        // success
-        String bought = plugin.getConfig().getString("messages.bought", "&a구매 완료! &f%item% &7x%amount% &a(가격: &e%price%&a)");
-        String __itemName;
-ItemMeta __meta = give.getItemMeta();
-if (__meta != null && __meta.hasDisplayName()) __itemName = __meta.getDisplayName();
-else __itemName = give.getType().name().toLowerCase().replace('_', ' ');
-bought = ChatColor.translateAlternateColorCodes('&', bought
-        .replace("%item%", __itemName)
-        .replace("%amount%", String.valueOf(give.getAmount()))
-        .replace("%price%", String.valueOf(price))
-);
-p.sendMessage(bought);
+        String bought = plugin.getConfig().getString("messages.bought",
+                "&a구매 완료! &f%item% &7x%amount% &a(가격: &e%price%&a)");
+        String itemName;
+        ItemMeta meta = give.getItemMeta();
+        if (meta != null && meta.hasDisplayName()) itemName = meta.getDisplayName();
+        else itemName = give.getType().name().toLowerCase().replace('_', ' ');
+        bought = ChatColor.translateAlternateColorCodes('&',
+                bought.replace("%item%", itemName)
+                      .replace("%amount%", String.valueOf(give.getAmount()))
+                      .replace("%price%", String.valueOf(price)));
+        p.sendMessage(bought);
         plugin.playBuyEffect(p);
     }
 
     /* ---------------------------
-     *  OPEN BY HAND ITEM (PDC)
+     *  OPEN BY HAND ITEM (PDC) — air/block right-click, both hands supported
      * --------------------------- */
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onUseOpenerItem(PlayerInteractEvent e) {
@@ -130,11 +118,11 @@ p.sendMessage(bought);
         if (a != Action.RIGHT_CLICK_AIR && a != Action.RIGHT_CLICK_BLOCK) return;
 
         Player p = e.getPlayer();
-        // Use the actual item that triggered the event (supports main/off hand and 1.16+ behavior)
-        ItemStack hand = e.getItem();
-        if (hand == null || hand.getType() == Material.AIR) return;
+        // Use the actual item that triggered the event (supports main/off hand)
+        ItemStack used = e.getItem();
+        if (used == null || used.getType() == Material.AIR) return;
 
-        ItemMeta meta = hand.getItemMeta();
+        ItemMeta meta = used.getItemMeta();
         if (meta == null) return;
 
         NamespacedKey key = new NamespacedKey(plugin, "shop_opener");
@@ -154,78 +142,58 @@ p.sendMessage(bought);
         p.openInventory(shop.createInventory());
     }
 
-        long now = System.currentTimeMillis();
-        Long last = openCooldown.get(p.getUniqueId());
-        if (last != null && (now - last) < OPEN_COOLDOWN_MS) return;
-        openCooldown.put(p.getUniqueId(), now);
-
-        e.setCancelled(true); // consume click
-        p.openInventory(shop.createInventory());
-    }
-
-    
-    private boolean tryOpenByHandItem(Player p) {
-        ItemStack hand = p.getInventory().getItemInMainHand();
-        if (hand == null || hand.getType() == Material.AIR) return false;
-        ItemMeta meta = hand.getItemMeta();
-        if (meta == null) return false;
-        NamespacedKey key = new NamespacedKey(plugin, "shop_opener");
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        String shopName = pdc.get(key, PersistentDataType.STRING);
-        if (shopName == null || shopName.isEmpty()) return false;
-        Shop shop = plugin.getShopManager().get(shopName);
-        if (shop == null) { p.sendMessage(plugin.msg("shop_missing")); return false; }
-
-        long now = System.currentTimeMillis();
-        Long last = openCooldown.get(p.getUniqueId());
-        if (last != null && (now - last) < OPEN_COOLDOWN_MS) return true; // treat as handled to avoid bounce
-        openCooldown.put(p.getUniqueId(), now);
-
-        p.openInventory(shop.createInventory());
-        return true;
-    }
-    
-
-    private boolean tryOpenByHandItem(Player p, EquipmentSlot slot) {
-        ItemStack hand = (slot == EquipmentSlot.OFF_HAND) ? p.getInventory().getItemInOffHand() : p.getInventory().getItemInMainHand();
-        if (hand == null || hand.getType() == Material.AIR) return false;
-        ItemMeta meta = hand.getItemMeta();
-        if (meta == null) return false;
-        NamespacedKey key = new NamespacedKey(plugin, "shop_opener");
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        String shopName = pdc.get(key, PersistentDataType.STRING);
-        if (shopName == null || shopName.isEmpty()) return false;
-        Shop shop = plugin.getShopManager().get(shopName);
-        if (shop == null) { p.sendMessage(plugin.msg("shop_missing")); return false; }
-
-        long now = System.currentTimeMillis();
-        Long last = openCooldown.get(p.getUniqueId());
-        if (last != null && (now - last) < OPEN_COOLDOWN_MS) return true;
-        openCooldown.put(p.getUniqueId(), now);
-
-        p.openInventory(shop.createInventory());
-        return true;
-    }
-    
-/* ---------------------------
-     *  NPC RIGHT-CLICK (Citizens ID-linked only)
+    /* ---------------------------
+     *  NPC/ENTITY RIGHT-CLICK — opener item first, then NPC link
      * --------------------------- */
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onNpcRightClick(PlayerInteractEntityEvent e) {
-        if (e.getHand() == null) return;
-        Player p = e.getPlayer();
-        if (tryOpenByHandItem(p, e.getHand())) { e.setCancelled(true); return; }
-        if (handleNpcClick(p, e.getRightClicked())) { e.setCancelled(true); }
+        // Try opener by the hand that actually triggered the event
+        if (e.getHand() != null) {
+            if (tryOpenByHandItem(e.getPlayer(), e.getHand())) {
+                e.setCancelled(true);
+                return;
+            }
+        }
+        if (handleNpcClick(e.getPlayer(), e.getRightClicked())) e.setCancelled(true);
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onNpcRightClick2(PlayerInteractAtEntityEvent e) {
-        if (e.getHand() == null) return;
-        Player p = e.getPlayer();
-        if (tryOpenByHandItem(p, e.getHand())) { e.setCancelled(true); return; }
-        if (handleNpcClick(p, e.getRightClicked())) { e.setCancelled(true); }
+        if (e.getHand() != null) {
+            if (tryOpenByHandItem(e.getPlayer(), e.getHand())) {
+                e.setCancelled(true);
+                return;
+            }
+        }
+        if (handleNpcClick(e.getPlayer(), e.getRightClicked())) e.setCancelled(true);
     }
 
+    private boolean tryOpenByHandItem(Player p, EquipmentSlot slot) {
+        ItemStack hand = (slot == EquipmentSlot.OFF_HAND)
+                ? p.getInventory().getItemInOffHand()
+                : p.getInventory().getItemInMainHand();
+        if (hand == null || hand.getType() == Material.AIR) return false;
+        ItemMeta meta = hand.getItemMeta();
+        if (meta == null) return false;
+        NamespacedKey key = new NamespacedKey(plugin, "shop_opener");
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        String shopName = pdc.get(key, PersistentDataType.STRING);
+        if (shopName == null || shopName.isEmpty()) return false;
+        Shop shop = plugin.getShopManager().get(shopName);
+        if (shop == null) { p.sendMessage(plugin.msg("shop_missing")); return false; }
+
+        long now = System.currentTimeMillis();
+        Long last = openCooldown.get(p.getUniqueId());
+        if (last != null && (now - last) < OPEN_COOLDOWN_MS) return true; // treat as handled
+        openCooldown.put(p.getUniqueId(), now);
+
+        p.openInventory(shop.createInventory());
+        return true;
+    }
+
+    /* ---------------------------
+     *  Citizens NPC ID-linked open (safe: only linked NPCs)
+     * --------------------------- */
     private boolean handleNpcClick(Player p, Entity entity) {
         if (entity == null) return false;
 
@@ -234,17 +202,15 @@ p.sendMessage(bought);
         if (last != null && (now - last) < OPEN_COOLDOWN_MS) return false;
         openCooldown.put(p.getUniqueId(), now);
 
-        // Citizens NPC ID only. Non-NPC entities are ignored completely.
         Integer npcId = getCitizensId(entity);
         if (npcId == null) return false;
 
         String linked = plugin.getShopManager().getLinkedShopNameById(npcId);
         if (linked == null || linked.isEmpty()) return false;
 
-        // Permission bypass only for linked NPC (config-controlled)
         boolean bypassCfg = plugin.getConfig().getBoolean("bypass-permission-on-npc", true);
         if (!p.hasPermission("ultimate.itemshop.use") && !bypassCfg) {
-            p.sendMessage(plugin.msg("no_permission"));
+            // 권한 없고 우회 비활성화면 열지 않음
             return false;
         }
 
@@ -266,7 +232,6 @@ p.sendMessage(bought);
      *  Citizens helper (reflection + metadata fallback)
      * --------------------------- */
     private Integer getCitizensId(Entity entity) {
-        // Reflection to avoid compile-time dependency
         try {
             Class<?> api = Class.forName("net.citizensnpcs.api.CitizensAPI");
             java.lang.reflect.Method getReg = api.getMethod("getNPCRegistry");
@@ -281,9 +246,8 @@ p.sendMessage(bought);
             Object id = getId.invoke(npcObj);
             if (id instanceof Integer) return (Integer) id;
             if (id != null) return Integer.parseInt(String.valueOf(id));
-        } catch (Throwable ignored) { /* Citizens absent or API mismatch */ }
+        } catch (Throwable ignored) { /* Citizens absent */ }
 
-        // Metadata hint (best-effort)
         try {
             if (entity.hasMetadata("NPC")) {
                 List<MetadataValue> vals = entity.getMetadata("NPC");
