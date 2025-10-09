@@ -128,10 +128,10 @@ p.sendMessage(bought);
     public void onUseOpenerItem(PlayerInteractEvent e) {
         Action a = e.getAction();
         if (a != Action.RIGHT_CLICK_AIR && a != Action.RIGHT_CLICK_BLOCK) return;
-        if (e.getHand() != EquipmentSlot.HAND) return; // main hand only
 
         Player p = e.getPlayer();
-        ItemStack hand = p.getInventory().getItemInMainHand();
+        // Use the actual item that triggered the event (supports main/off hand and 1.16+ behavior)
+        ItemStack hand = e.getItem();
         if (hand == null || hand.getType() == Material.AIR) return;
 
         ItemMeta meta = hand.getItemMeta();
@@ -143,10 +143,16 @@ p.sendMessage(bought);
         if (shopName == null || shopName.isEmpty()) return;
 
         Shop shop = plugin.getShopManager().get(shopName);
-        if (shop == null) {
-            p.sendMessage(plugin.msg("shop_missing"));
-            return;
-        }
+        if (shop == null) { p.sendMessage(plugin.msg("shop_missing")); return; }
+
+        long now = System.currentTimeMillis();
+        Long last = openCooldown.get(p.getUniqueId());
+        if (last != null && (now - last) < OPEN_COOLDOWN_MS) return;
+        openCooldown.put(p.getUniqueId(), now);
+
+        e.setCancelled(true);
+        p.openInventory(shop.createInventory());
+    }
 
         long now = System.currentTimeMillis();
         Long last = openCooldown.get(p.getUniqueId());
@@ -179,22 +185,44 @@ p.sendMessage(bought);
         return true;
     }
     
+
+    private boolean tryOpenByHandItem(Player p, EquipmentSlot slot) {
+        ItemStack hand = (slot == EquipmentSlot.OFF_HAND) ? p.getInventory().getItemInOffHand() : p.getInventory().getItemInMainHand();
+        if (hand == null || hand.getType() == Material.AIR) return false;
+        ItemMeta meta = hand.getItemMeta();
+        if (meta == null) return false;
+        NamespacedKey key = new NamespacedKey(plugin, "shop_opener");
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        String shopName = pdc.get(key, PersistentDataType.STRING);
+        if (shopName == null || shopName.isEmpty()) return false;
+        Shop shop = plugin.getShopManager().get(shopName);
+        if (shop == null) { p.sendMessage(plugin.msg("shop_missing")); return false; }
+
+        long now = System.currentTimeMillis();
+        Long last = openCooldown.get(p.getUniqueId());
+        if (last != null && (now - last) < OPEN_COOLDOWN_MS) return true;
+        openCooldown.put(p.getUniqueId(), now);
+
+        p.openInventory(shop.createInventory());
+        return true;
+    }
+    
 /* ---------------------------
      *  NPC RIGHT-CLICK (Citizens ID-linked only)
      * --------------------------- */
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onNpcRightClick(PlayerInteractEntityEvent e) {
-        if (e.getHand() != EquipmentSlot.HAND) return;
+        if (e.getHand() == null) return;
         Player p = e.getPlayer();
-        if (tryOpenByHandItem(p)) { e.setCancelled(true); return; }
+        if (tryOpenByHandItem(p, e.getHand())) { e.setCancelled(true); return; }
         if (handleNpcClick(p, e.getRightClicked())) { e.setCancelled(true); }
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onNpcRightClick2(PlayerInteractAtEntityEvent e) {
-        if (e.getHand() != EquipmentSlot.HAND) return;
+        if (e.getHand() == null) return;
         Player p = e.getPlayer();
-        if (tryOpenByHandItem(p)) { e.setCancelled(true); return; }
+        if (tryOpenByHandItem(p, e.getHand())) { e.setCancelled(true); return; }
         if (handleNpcClick(p, e.getRightClicked())) { e.setCancelled(true); }
     }
 
