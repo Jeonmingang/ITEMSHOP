@@ -113,37 +113,18 @@ public class GuiListener implements Listener {
      *  OPEN BY HAND ITEM (PDC) — air/block right-click, both hands supported
      * --------------------------- */
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
-    public void onUseOpenerItem(PlayerInteractEvent e) {
-        Action a = e.getAction();
-        if (a != Action.RIGHT_CLICK_AIR && a != Action.RIGHT_CLICK_BLOCK) return;
-
-        Player p = e.getPlayer();
-        // Use the actual item that triggered the event (supports main/off hand)
-        ItemStack used = e.getItem();
-        if (used == null || used.getType() == Material.AIR) return;
-
-        ItemMeta meta = used.getItemMeta();
-        if (meta == null) return;
-
-        NamespacedKey key = new NamespacedKey(plugin, "shop_opener");
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        String shopName = pdc.get(key, PersistentDataType.STRING);
-        if (shopName == null || shopName.isEmpty()) return;
-
-        Shop shop = plugin.getShopManager().get(shopName);
-        if (shop == null) { p.sendMessage(plugin.msg("shop_missing")); return; }
-
-        long now = System.currentTimeMillis();
-        Long last = openCooldown.get(p.getUniqueId());
-        if (last != null && (now - last) < OPEN_COOLDOWN_MS) return;
-        openCooldown.put(p.getUniqueId(), now);
-
+public void onUseOpenerItem(PlayerInteractEvent e) {
+    Action a = e.getAction();
+    if (a != Action.RIGHT_CLICK_AIR && a != Action.RIGHT_CLICK_BLOCK) return;
+    // Use the hand that actually triggered the event (main/off-hand safe)
+    if (e.getHand() == null) return;
+    if (tryOpenByHandItem(e.getPlayer(), e.getHand())) {
         e.setCancelled(true);
-        p.openInventory(shop.createInventory());
     }
+}
 
-    /* ---------------------------
-     *  NPC/ENTITY RIGHT-CLICK — opener item first, then NPC link
+/* ---------------------------
+*  NPC/ENTITY RIGHT-CLICK — opener item first, then NPC link — opener item first, then NPC link
      * --------------------------- */
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onNpcRightClick(PlayerInteractEntityEvent e) {
